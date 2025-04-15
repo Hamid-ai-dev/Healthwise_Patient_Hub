@@ -1,0 +1,13 @@
+# Environment variables
+.env
+
+# Node.js dependencies
+node_modules/
+
+# Lock file
+package-lock.json
+
+# Optional: OS and editor-specific files
+.DS_Store
+Thumbs.db
+*.log
