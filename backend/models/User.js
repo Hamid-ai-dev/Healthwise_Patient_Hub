@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ['patient', 'doctor'] // Only allows these values
+    enum: ['patient', 'doctor' , 'admin'] // Only allows these values
   }
 });
 
