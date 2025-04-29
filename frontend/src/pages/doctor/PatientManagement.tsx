@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { formatDistance } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import AddPatient from "./AddPatient";
 
 // Mock patient queries data
 const patientQueries: PatientQuery[] = [
@@ -64,7 +65,11 @@ const enhancedPatients: Patient[] = patients.map(patient => ({
   queries: patientQueries.filter(query => query.patientId === patient.id)
 }));
 
+
 const PatientManagement = () => {
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const [patientList, setPatientList] = useState<Patient[]>([]);
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,8 +79,24 @@ const PatientManagement = () => {
   const [queryResponse, setQueryResponse] = useState("");
   const [selectedQuery, setSelectedQuery] = useState<PatientQuery | null>(null);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("patientList");
+    if (saved) {
+      setPatientList(JSON.parse(saved));
+    } else {
+      setPatientList(enhancedPatients);
+    }
+  }, []);
+  
+  // // Save to localStorage on change
+  // useEffect(() => {
+  //   localStorage.setItem("patientList", JSON.stringify(patientList));
+  // }, [patientList]);
+
+
   // Filter doctor's patients
-  const doctorPatients = enhancedPatients.filter(patient => {
+  // const doctorPatients = enhancedPatients.filter(patient => {
+    const doctorPatients = patientList.filter(patient => {
     const doctorId = user?.id || "";
     const isPatientOfDoctor = doctors.find(doc => 
       doc.id === doctorId && doc.patients?.includes(patient.id)
@@ -133,15 +154,14 @@ const PatientManagement = () => {
       title: "Response sent",
       description: "Your response has been sent to the patient",
     });
-    
+
     // Update the query status (in a real app, this would happen after API success)
     if (selectedPatient && selectedPatient.queries) {
       const updatedQueries = selectedPatient.queries.map(q => 
         q.id === selectedQuery.id 
           ? {...q, response: queryResponse, status: 'answered' as const, updatedAt: new Date().toISOString()} 
           : q
-      );
-      
+      ); 
       setSelectedPatient({
         ...selectedPatient,
         queries: updatedQueries
@@ -151,7 +171,6 @@ const PatientManagement = () => {
       setSelectedQuery(null);
     }
   };
-
   // Format date for display
   const formatDate = (dateString: string) => {
     try {
@@ -164,7 +183,6 @@ const PatientManagement = () => {
       return dateString;
     }
   };
-
   // Format time since for queries
   const getTimeSince = (dateString: string) => {
     try {
@@ -173,7 +191,6 @@ const PatientManagement = () => {
       return dateString;
     }
   };
-
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
@@ -184,10 +201,22 @@ const PatientManagement = () => {
               <CardHeader>
                 <CardTitle className="flex justify-between items-center">
                   <span>My Patients</span>
-                  <Button variant="outline" size="sm" onClick={() => navigate('/patients/add')}>
+                  <Button variant="outline" size="sm" onClick={() => setShowAddPatient(true)}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Add
                   </Button>
+                  {showAddPatient && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4 py-8">
+                        <AddPatient
+                          onClose={() => setShowAddPatient(false)}
+                          onSave={(newPatient: Patient) => {
+                            setPatientList(prev => [...prev, newPatient]);
+                            setSelectedPatient(newPatient);
+                            setShowAddPatient(false);
+                          }}
+                        />
+                      </div>
+                    )}
                 </CardTitle>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -254,12 +283,13 @@ const PatientManagement = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                        {selectedPatient.image ? (
-                          <img src={selectedPatient.image} alt="" className="h-14 w-14 rounded-full" />
-                        ) : (
-                          <UserRound className="h-7 w-7" />
-                        )}
+                      {selectedPatient.image ? (
+                        <img src={typeof selectedPatient.image === "string" ? selectedPatient.image: URL.createObjectURL(selectedPatient.image)} alt=""
+                        className="h-14 w-14 rounded-full object-cover"/>
+                      ) : (
+                      <UserRound className="h-7 w-7" />)}
                       </div>
+                      
                       <div>
                         <CardTitle className="text-xl">{selectedPatient.name}</CardTitle>
                         <CardDescription className="flex items-center mt-1">
