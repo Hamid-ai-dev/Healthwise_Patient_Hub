@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: 'patient' | 'doctor') => Promise<void>;
   logout: () => void;
+  Doctorprofiledata: (data: any) => Promise<void>;
   loading: boolean;
 }
 
@@ -37,6 +38,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     setLoading(false);
   }, []);
+
+  const Doctorprofiledata = async (data: any) => {
+    const response = await fetch('http://localhost:5000/api/doctor/submitDoctorVerification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Submission failed');
+
+    console.log('Success:', result);
+    alert('Profile submitted successfully!');
+  };
 
   const loadUserData = (userData: User) => {
     if (userData.role === 'patient') {
@@ -150,7 +165,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login, 
       register, 
       logout,
-      loading
+      loading,
+      Doctorprofiledata
     }}>
       {children}
     </AuthContext.Provider>

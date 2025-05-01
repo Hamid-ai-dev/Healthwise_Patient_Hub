@@ -3,6 +3,8 @@ const cors = require('cors');
 const connectDB = require('./db/connect');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+const doctorvericationRoutes = require('./routes/doctorvericationRoutes');
+
 require('dotenv').config();
 
 const app = express();
@@ -16,7 +18,7 @@ app.use(express.json());
 connectDB();
 // Use signup routes
 app.use('/api', userRoutes);
-
+app.use('/api/doctor', doctorvericationRoutes);
 app.use('/api/alerts', alertRoutes);
 
 

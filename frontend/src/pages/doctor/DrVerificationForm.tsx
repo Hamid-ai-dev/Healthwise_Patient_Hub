@@ -1,69 +1,91 @@
 import React, { useState } from 'react';
+import { useForm, useFieldArray, useController, SubmitHandler } from 'react-hook-form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
+import { useAuth } from '@/context/AuthContext';
 
 const DrVerificationForm = () => {
   const [activeTab, setActiveTab] = useState<'personal' | 'education' | 'experience' | 'certifications'>('personal');
-  const [formData, setFormData] = useState({
-    fullName: '',
-    dob: '',
-    gender: '',
-    contactNumber: '',
-    address: '',
-    education: [{ degree: '', institution: '', gradYear: '', country: '', specialization: '' }],
-    experiences: [{ institution: '', position: '', startDate: '', endDate: '', description: '' }],
-    certifications: [{ certificate: '', authority: '', certYear: '' }],
+  const { register, handleSubmit, control, setValue, formState, watch, trigger, getValues } = useForm({
+    defaultValues: {
+      fullName: '',
+      dob: '',
+      gender: '',
+      contactNumber: '',
+      address: '',
+      education: [{ degree: '', institution: '', gradYear: '', country: '', specialization: '' }],
+      experiences: [{ institution: '', position: '', startDate: '', endDate: '', description: '' }],
+      certifications: [{ certificate: '', authority: '', certYear: '' }]
+    },
+    mode: 'onChange', // Validation on input change
   });
 
-  const handleChange = (e, sectionIndex = null, sectionName = null) => {
-    const { name, value } = e.target;
-    if (sectionName !== null && sectionIndex !== null) {
-      const updatedSection = [...formData[sectionName]];
-      updatedSection[sectionIndex][name] = value;
-      setFormData({ ...formData, [sectionName]: updatedSection });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-  };
+  const { fields: eduFields, append: appendEdu } = useFieldArray({ control, name: 'education' });
+  const { fields: expFields, append: appendExp } = useFieldArray({ control, name: 'experiences' });
+  const { fields: certFields, append: appendCert } = useFieldArray({ control, name: 'certifications' });
 
-  const addSection = (sectionName, template) => {
-    setFormData({ ...formData, [sectionName]: [...formData[sectionName], template] });
-  };
+  const { field: genderField } = useController({
+    name: 'gender',
+    control,
+    defaultValue: ''
+  });
 
-  const nextTab = () => {
-    const tabs = ['personal', 'education', 'experience', 'certifications'];
-    const currentIndex = tabs.indexOf(activeTab);
-    if (currentIndex < tabs.length - 1) {
-      setActiveTab(tabs[currentIndex + 1] as 'personal' | 'education' | 'experience' | 'certifications');
-    }
-  };
+  const { Doctorprofiledata } = useAuth();
 
-  const prevTab = () => {
-    const tabs = ['personal', 'education', 'experience', 'certifications'];
-    const currentIndex = tabs.indexOf(activeTab);
-    if (currentIndex > 0) {
-      setActiveTab(tabs[currentIndex - 1] as 'personal' | 'education' | 'experience' | 'certifications');
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data: any) => {
+    // Prepare/reshape data
+    const reshapedData = {
+      personal: [{
+        fullName: data.fullName,
+        dateOfBirth: data.dob,
+        gender: data.gender,
+        contactNumber: data.contactNumber,
+        address: data.address,
+      }],
+      education: data.education,
+      experience: data.experiences,
+      certificates: data.certifications,
+    };
+  
     try {
-      const response = await fetch('/api/submitDoctorVerification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Submission failed');
-      console.log('Success:', data);
+      console.log(reshapedData);
+      await Doctorprofiledata(reshapedData); // Calling from useAuth
     } catch (error) {
-      console.error('Error submitting form:', error);
+     
+      alert('Submission failed. Check console for details.');
+    }
+  };
+  
+
+  // Function to validate the current section
+  const validateCurrentSection = async () => {
+    let valid = false;
+    switch (activeTab) {
+      case 'personal':
+        valid = await trigger(['fullName', 'dob', 'gender', 'contactNumber', 'address']);
+        break;
+      case 'education':
+        valid = await trigger('education');
+        break;
+      case 'experience':
+        valid = await trigger('experiences');
+        break;
+      case 'certifications':
+        valid = await trigger('certifications');
+        break;
+      default:
+        break;
+    }
+    return valid;
+  };
+
+  // Handle section change with validation
+  const handleTabChange = async (nextTab: 'personal' | 'education' | 'experience' | 'certifications') => {
+    const isValid = await validateCurrentSection();
+    if (isValid) {
+      setActiveTab(nextTab);
     }
   };
 
@@ -74,16 +96,16 @@ const DrVerificationForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="fullName">Full Name*</Label>
-              <Input id="fullName" type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Dr. John Smith" className='mt-1' required />
+              <Input id="fullName" {...register("fullName", { required: true })} placeholder="Dr. John Smith" className="mt-1" />
             </div>
             <div>
               <Label htmlFor="dob">Date of Birth*</Label>
-              <Input id="dob" type="date" name="dob" value={formData.dob} onChange={handleChange} className='mt-1' required />
+              <Input id="dob" type="date" {...register("dob", { required: true })} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="gender">Gender*</Label>
-              <Select name="gender" value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
-                <SelectTrigger className="mt-1" id="gender">
+              <Label>Gender*</Label>
+              <Select {...genderField} value={genderField.value} onValueChange={(val) => setValue('gender', val)}>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -95,94 +117,103 @@ const DrVerificationForm = () => {
             </div>
             <div>
               <Label htmlFor="contactNumber">Contact Number*</Label>
-              <Input id="contactNumber" type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} placeholder='Contact' className='mt-1' required />
+              <Input type='number' id="contactNumber" {...register("contactNumber", { required: true })} placeholder="Contact" className="mt-1" />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="address">Address*</Label>
-              <Input id="address" type="text" name="address" value={formData.address} onChange={handleChange} required placeholder='Address' className='mt-1' />
+              <Input id="address" {...register("address", { required: true })} placeholder="Address" className="mt-1" />
             </div>
           </div>
         );
+
       case 'education':
         return (
           <div className="space-y-4">
-            {formData.education.map((edu, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {eduFields.map((item, index) => (
+              <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <Label htmlFor={`degree-${index}`}>Degree*</Label>
-                  <Input id={`degree-${index}`} name="degree" value={edu.degree} onChange={(e) => handleChange(e, index, 'education')} placeholder='Degree' className='mt-1' required />
+                  <Label>Degree*</Label>
+                  <Input {...register(`education.${index}.degree`, { required: true })} placeholder="Degree" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`institution-${index}`}>Institution*</Label>
-                  <Input id={`institution-${index}`} name="institution" value={edu.institution} onChange={(e) => handleChange(e, index, 'education')} placeholder='Institution' className='mt-1' required />
+                  <Label>Institution*</Label>
+                  <Input {...register(`education.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`gradYear-${index}`}>Graduation Year*</Label>
-                  <Input id={`gradYear-${index}`} name="gradYear" value={edu.gradYear} onChange={(e) => handleChange(e, index, 'education')} placeholder='GradYear' className='mt-1' required />
+                  <Label>Grad Year*</Label>
+                  <Input type='number' min="1900" max="2025" {...register(`education.${index}.gradYear`, { required: true })} placeholder="Valid Grad Year (1990 to 2025)" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`country-${index}`}>Country</Label>
-                  <Input id={`country-${index}`} name="country" value={edu.country} onChange={(e) => handleChange(e, index, 'education')} placeholder='Country' className='mt-1' />
+                  <Label>Country</Label>
+                  <Input {...register(`education.${index}.country`)} placeholder="Country" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`specialization-${index}`}>Specialization</Label>
-                  <Input id={`specialization-${index}`} name="specialization" value={edu.specialization} onChange={(e) => handleChange(e, index, 'education')} placeholder='Specialization' className='mt-1' />
+                  <Label>Specialization</Label>
+                  <Input {...register(`education.${index}.specialization`)} placeholder="Specialization" className="mt-1" />
                 </div>
               </div>
             ))}
-            <Label className="block text-blue-600 cursor-pointer" onClick={() => addSection('education', { degree: '', institution: '', gradYear: '', country: '', specialization: '' })}>+ Add Another Education</Label>
+            <Label className="text-blue-600 cursor-pointer" onClick={() => appendEdu({ degree: '', institution: '', gradYear: '', country: '', specialization: '' })}>
+              + Add Another Education
+            </Label>
           </div>
         );
+
       case 'experience':
         return (
           <div className="space-y-4">
-            {formData.experiences.map((exp, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {expFields.map((item, index) => (
+              <div key={item.id} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor={`expInstitution-${index}`}>Institution*</Label>
-                  <Input id={`expInstitution-${index}`} name="institution" value={exp.institution} onChange={(e) => handleChange(e, index, 'experiences')} placeholder='Institution' className='mt-1' required />
+                  <Label>Institution*</Label>
+                  <Input {...register(`experiences.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`position-${index}`}>Position*</Label>
-                  <Input id={`position-${index}`} name="position" value={exp.position} onChange={(e) => handleChange(e, index, 'experiences')} placeholder='Position' className='mt-1' required />
+                  <Label>Position*</Label>
+                  <Input {...register(`experiences.${index}.position`, { required: true })} placeholder="Position" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`startDate-${index}`}>Start Date*</Label>
-                  <Input id={`startDate-${index}`} type="date" name="startDate" value={exp.startDate} onChange={(e) => handleChange(e, index, 'experiences')} placeholder='Start Date' className='mt-1' required />
+                  <Label>Start Date*</Label>
+                  <Input type="date" {...register(`experiences.${index}.startDate`, { required: true })} className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`endDate-${index}`}>End Date*</Label>
-                  <Input id={`endDate-${index}`} type="date" name="endDate" value={exp.endDate} onChange={(e) => handleChange(e, index, 'experiences')} placeholder='End Date' className='mt-1' required />
+                  <Label>End Date*</Label>
+                  <Input type="date" {...register(`experiences.${index}.endDate`, { required: true })} className="mt-1" />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor={`description-${index}`}>Description</Label>
-                  <Textarea id={`description-${index}`} name="description" value={exp.description} onChange={(e) => handleChange(e, index, 'experiences')} className='mt-1' placeholder="Description" />
+                  <Label>Description</Label>
+                  <Textarea {...register(`experiences.${index}.description`)} className="mt-1" placeholder="Description" />
                 </div>
               </div>
             ))}
-            <Label className="block text-blue-600 cursor-pointer" onClick={() => addSection('experiences', { institution: '', position: '', startDate: '', endDate: '', description: '' })}>+ Add Another Experience</Label>
+            <Label className="text-blue-600 cursor-pointer" onClick={() => appendExp({ institution: '', position: '', startDate: '', endDate: '', description: '' })}>
+              + Add Another Experience
+            </Label>
           </div>
         );
+
       case 'certifications':
         return (
           <div className="space-y-4">
-            {formData.certifications.map((cert, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {certFields.map((item, index) => (
+              <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <Label htmlFor={`certificate-${index}`}>Certificate Name*</Label>
-                  <Input id={`certificate-${index}`} name="certificate" value={cert.certificate} onChange={(e) => handleChange(e, index, 'certifications')} className='mt-1' placeholder='Certificate Name' required />
+                  <Label>Certificate Name*</Label>
+                  <Input {...register(`certifications.${index}.certificate`, { required: true })} placeholder="Certificate Name" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`authority-${index}`}>Issuing Organization*</Label>
-                  <Input id={`authority-${index}`} name="authority" value={cert.authority} onChange={(e) => handleChange(e, index, 'certifications')} placeholder='Issuing Organization' className='mt-1' required />
+                  <Label>Issuing Organization*</Label>
+                  <Input {...register(`certifications.${index}.authority`, { required: true })} placeholder="Issuing Organization" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor={`certYear-${index}`}>Issue Year*</Label>
-                  <Input id={`certYear-${index}`} type="text" name="certYear" value={cert.certYear} onChange={(e) => handleChange(e, index, 'certifications')} placeholder='Issue Year' className='mt-1' required />
+                  <Label>Issue Year*</Label>
+                  <Input type='number' min="1900" max="2025" {...register(`certifications.${index}.certYear`, { required: true })} placeholder="Valid Issue Year (1990 to 2025)" className="mt-1" />
                 </div>
               </div>
             ))}
-            <Label className="block text-blue-600 cursor-pointer" onClick={() => addSection('certifications', { certificate: '', authority: '', certYear: '' })}>+ Add Another Certification</Label>
+            <Label className="text-blue-600 cursor-pointer" onClick={() => appendCert({ certificate: '', authority: '', certYear: '' })}>
+              + Add Another Certification
+            </Label>
           </div>
         );
     }
@@ -199,8 +230,11 @@ const DrVerificationForm = () => {
             {['personal', 'education', 'experience', 'certifications'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as "personal" | "education" | "experience" | "certifications")}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors duration-300 ${activeTab === tab ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent'}`}
+                onClick={() => handleTabChange(tab as 'personal' | 'education' | 'experience' | 'certifications')}
+                disabled={activeTab !== tab && !formState.isValid}
+                className={`px-4 py-2 font-medium border-b-2 transition-colors duration-300 ${
+                  activeTab === tab ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent'
+                }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -208,20 +242,36 @@ const DrVerificationForm = () => {
           </nav>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {renderTabContent()}
-
           <div className="flex justify-between">
             {activeTab !== 'personal' && (
-              <button type="button" onClick={prevTab} className="px-6 py-2 bg-gray-300 rounded-md">Previous</button>
-            )}
-            {activeTab !== 'certifications' ? (
-              <button type="button" onClick={nextTab} className="ml-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Next
+              <button type="button" onClick={() => setActiveTab('personal')} className="px-6 py-2 bg-gray-300 rounded-md">
+                Previous
               </button>
-            ) : (
-              <button type="submit" className="ml-auto px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Save Information</button>
             )}
+   <button
+  type="button" 
+  onClick={async () => {
+    const valid = await validateCurrentSection();
+    if (valid) {
+      if (activeTab === 'certifications') {
+        // Trigger form submission and log the data to the console
+        handleSubmit(onSubmit)();
+      } else {
+        const currentTabIndex = ['personal', 'education', 'experience', 'certifications'].indexOf(activeTab);
+        const nextTab = ['personal', 'education', 'experience', 'certifications'][currentTabIndex + 1];
+        if (nextTab) setActiveTab(nextTab as any);
+      }
+    }
+  }}
+  className={`ml-auto rounded-md px-6 py-2 ${formState.isValid ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+  disabled={!formState.isValid}
+>
+  {activeTab === 'certifications' ? 'Save Information' : 'Next'}
+</button>
+
+
           </div>
         </form>
       </div>
