@@ -95,7 +95,7 @@ const DrVerificationForm = () => {
             </div>
             <div>
               <Label htmlFor="contactNumber">Contact Number*</Label>
-              <Input id="contactNumber" type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} required />
+              <Input id="contactNumber" type="text" name="contactNumber" value={formData.contactNumber} onChange={handleChange} placeholder='Contact' className='mt-1' required />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="address">Address*</Label>
@@ -211,12 +211,14 @@ const DrVerificationForm = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {renderTabContent()}
 
-          <div className="flex justify-between pt-6">
+          <div className="flex justify-between">
             {activeTab !== 'personal' && (
               <button type="button" onClick={prevTab} className="px-6 py-2 bg-gray-300 rounded-md">Previous</button>
             )}
             {activeTab !== 'certifications' ? (
-              <button type="button" onClick={nextTab} className="ml-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Next</button>
+              <button type="button" onClick={nextTab} className="ml-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                Next
+              </button>
             ) : (
               <button type="submit" className="ml-auto px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Save Information</button>
             )}
