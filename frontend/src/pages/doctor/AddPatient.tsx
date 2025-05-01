@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from '@/components/ui/label';
+import {Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from "@/components/ui/select"
+
 
 interface AddPatientProps {
   onClose: () => void;
@@ -53,7 +55,7 @@ const AddPatient: React.FC<AddPatientProps> = ({ onClose, onSave }) => {
   };
 
   return (
-    <div className="w-full max-w-5xl bg-white p-6 rounded-lg shadow-xl overflow-y-auto max-h-[100vh]">
+    <div className="w-full max-w-5xl bg-white p-3 rounded-lg shadow-xl overflow-y-auto max-h-[95vh]">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New Patient</h2>
       <form
         onSubmit={(e) => {
@@ -128,15 +130,18 @@ const AddPatient: React.FC<AddPatientProps> = ({ onClose, onSave }) => {
         {/* Gender */}
         <div>
           <Label>Gender</Label>
-          <select
+          <Select
             value={formData.gender}
-            onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-            className="mt-1 border w-full rounded-md p-2 text-sm" required>
-            <option value="">Select</option>
-            <option>Male</option>
-            <option>Female</option>
-            <option>Other</option>
-          </select>
+            onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+            <SelectTrigger className="mt-1 border w-full rounded-md p-2 text-sm">
+                  <SelectValue placeholder="Select gender" />
+            </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
         </div>
         {/* Contact Number */}
         <div>
