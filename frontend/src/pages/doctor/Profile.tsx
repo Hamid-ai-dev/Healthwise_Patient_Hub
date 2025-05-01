@@ -29,6 +29,7 @@ import {
   Stethoscope,
   MessageSquare
 } from "lucide-react";
+import DrVerificationForm from './DrVerificationForm';
 
 const DoctorProfile = () => {
   const { user } = useAuth();
@@ -104,7 +105,7 @@ const DoctorProfile = () => {
   if (!doctorData) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">
+        {/* <div className="text-center py-12">
           <h2 className="text-2xl font-bold">Doctor profile not found</h2>
           <p className="text-muted-foreground mt-2">
             We couldn't find your profile data. Please contact support.
@@ -115,7 +116,8 @@ const DoctorProfile = () => {
           >
             Return to Dashboard
           </Button>
-        </div>
+        </div> */}
+      <DrVerificationForm />
       </DashboardLayout>
     );
   }
