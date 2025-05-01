@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useController, SubmitHandler } from 'react-hook-form';
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -7,8 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const DrVerificationForm = () => {
   const [activeTab, setActiveTab] = useState<'personal' | 'education' | 'experience' | 'certifications'>('personal');
-
-  const { register, handleSubmit, control, setValue, getValues } = useForm({
+  const { register, handleSubmit, control, setValue, formState, watch, trigger, getValues } = useForm({
     defaultValues: {
       fullName: '',
       dob: '',
@@ -18,14 +17,21 @@ const DrVerificationForm = () => {
       education: [{ degree: '', institution: '', gradYear: '', country: '', specialization: '' }],
       experiences: [{ institution: '', position: '', startDate: '', endDate: '', description: '' }],
       certifications: [{ certificate: '', authority: '', certYear: '' }]
-    }
+    },
+    mode: 'onChange', // Validation on input change
   });
 
   const { fields: eduFields, append: appendEdu } = useFieldArray({ control, name: 'education' });
   const { fields: expFields, append: appendExp } = useFieldArray({ control, name: 'experiences' });
   const { fields: certFields, append: appendCert } = useFieldArray({ control, name: 'certifications' });
 
-  const onSubmit = async (data) => {
+  const { field: genderField } = useController({
+    name: 'gender',
+    control,
+    defaultValue: ''
+  });
+
+  const onSubmit: SubmitHandler<any> = async (data) => {
     try {
       const response = await fetch('/api/submitDoctorVerification', {
         method: 'POST',
@@ -37,6 +43,36 @@ const DrVerificationForm = () => {
       console.log('Success:', result);
     } catch (error) {
       console.error('Error submitting form:', error);
+    }
+  };
+
+  // Function to validate the current section
+  const validateCurrentSection = async () => {
+    let valid = false;
+    switch (activeTab) {
+      case 'personal':
+        valid = await trigger(['fullName', 'dob', 'gender', 'contactNumber', 'address']);
+        break;
+      case 'education':
+        valid = await trigger('education');
+        break;
+      case 'experience':
+        valid = await trigger('experiences');
+        break;
+      case 'certifications':
+        valid = await trigger('certifications');
+        break;
+      default:
+        break;
+    }
+    return valid;
+  };
+
+  // Handle section change with validation
+  const handleTabChange = async (nextTab: 'personal' | 'education' | 'experience' | 'certifications') => {
+    const isValid = await validateCurrentSection();
+    if (isValid) {
+      setActiveTab(nextTab);
     }
   };
 
@@ -55,7 +91,7 @@ const DrVerificationForm = () => {
             </div>
             <div>
               <Label>Gender*</Label>
-              <Select value={getValues("gender")} onValueChange={(val) => setValue("gender", val)}>
+              <Select {...genderField} value={genderField.value} onValueChange={(val) => setValue('gender', val)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
@@ -68,7 +104,7 @@ const DrVerificationForm = () => {
             </div>
             <div>
               <Label htmlFor="contactNumber">Contact Number*</Label>
-              <Input id="contactNumber" {...register("contactNumber", { required: true })} placeholder="Contact" className="mt-1" />
+              <Input type='number' id="contactNumber" {...register("contactNumber", { required: true })} placeholder="Contact" className="mt-1" />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="address">Address*</Label>
@@ -82,11 +118,26 @@ const DrVerificationForm = () => {
           <div className="space-y-4">
             {eduFields.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Input {...register(`education.${index}.degree`, { required: true })} placeholder="Degree" className="mt-1" />
-                <Input {...register(`education.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
-                <Input {...register(`education.${index}.gradYear`, { required: true })} placeholder="Grad Year" className="mt-1" />
-                <Input {...register(`education.${index}.country`)} placeholder="Country" className="mt-1" />
-                <Input {...register(`education.${index}.specialization`)} placeholder="Specialization" className="mt-1" />
+                <div>
+                  <Label>Degree*</Label>
+                  <Input {...register(`education.${index}.degree`, { required: true })} placeholder="Degree" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Institution*</Label>
+                  <Input {...register(`education.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Grad Year*</Label>
+                  <Input {...register(`education.${index}.gradYear`, { required: true })} placeholder="Grad Year" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Country</Label>
+                  <Input {...register(`education.${index}.country`)} placeholder="Country" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Specialization</Label>
+                  <Input {...register(`education.${index}.specialization`)} placeholder="Specialization" className="mt-1" />
+                </div>
               </div>
             ))}
             <Label className="text-blue-600 cursor-pointer" onClick={() => appendEdu({ degree: '', institution: '', gradYear: '', country: '', specialization: '' })}>
@@ -100,11 +151,26 @@ const DrVerificationForm = () => {
           <div className="space-y-4">
             {expFields.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input {...register(`experiences.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
-                <Input {...register(`experiences.${index}.position`, { required: true })} placeholder="Position" className="mt-1" />
-                <Input type="date" {...register(`experiences.${index}.startDate`, { required: true })} className="mt-1" />
-                <Input type="date" {...register(`experiences.${index}.endDate`, { required: true })} className="mt-1" />
-                <Textarea {...register(`experiences.${index}.description`)} className="md:col-span-2 mt-1" placeholder="Description" />
+                <div>
+                  <Label>Institution*</Label>
+                  <Input {...register(`experiences.${index}.institution`, { required: true })} placeholder="Institution" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Position*</Label>
+                  <Input {...register(`experiences.${index}.position`, { required: true })} placeholder="Position" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Start Date*</Label>
+                  <Input type="date" {...register(`experiences.${index}.startDate`, { required: true })} className="mt-1" />
+                </div>
+                <div>
+                  <Label>End Date*</Label>
+                  <Input type="date" {...register(`experiences.${index}.endDate`, { required: true })} className="mt-1" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea {...register(`experiences.${index}.description`)} className="mt-1" placeholder="Description" />
+                </div>
               </div>
             ))}
             <Label className="text-blue-600 cursor-pointer" onClick={() => appendExp({ institution: '', position: '', startDate: '', endDate: '', description: '' })}>
@@ -118,9 +184,18 @@ const DrVerificationForm = () => {
           <div className="space-y-4">
             {certFields.map((item, index) => (
               <div key={item.id} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Input {...register(`certifications.${index}.certificate`, { required: true })} placeholder="Certificate Name" className="mt-1" />
-                <Input {...register(`certifications.${index}.authority`, { required: true })} placeholder="Issuing Organization" className="mt-1" />
-                <Input {...register(`certifications.${index}.certYear`, { required: true })} placeholder="Issue Year" className="mt-1" />
+                <div>
+                  <Label>Certificate Name*</Label>
+                  <Input {...register(`certifications.${index}.certificate`, { required: true })} placeholder="Certificate Name" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Issuing Organization*</Label>
+                  <Input {...register(`certifications.${index}.authority`, { required: true })} placeholder="Issuing Organization" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Issue Year*</Label>
+                  <Input {...register(`certifications.${index}.certYear`, { required: true })} placeholder="Issue Year" className="mt-1" />
+                </div>
               </div>
             ))}
             <Label className="text-blue-600 cursor-pointer" onClick={() => appendCert({ certificate: '', authority: '', certYear: '' })}>
@@ -131,8 +206,6 @@ const DrVerificationForm = () => {
     }
   };
 
-  const tabs = ['personal', 'education', 'experience', 'certifications'];
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <div className="bg-white w-full max-w-4xl rounded-xl shadow-lg p-8">
@@ -141,10 +214,11 @@ const DrVerificationForm = () => {
 
         <div className="border-b border-gray-200 mb-4">
           <nav className="flex space-x-4">
-            {tabs.map((tab) => (
+            {['personal', 'education', 'experience', 'certifications'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as typeof activeTab)}
+                onClick={() => handleTabChange(tab as 'personal' | 'education' | 'experience' | 'certifications')}
+                disabled={activeTab !== tab && !formState.isValid}
                 className={`px-4 py-2 font-medium border-b-2 transition-colors duration-300 ${
                   activeTab === tab ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent'
                 }`}
@@ -159,19 +233,25 @@ const DrVerificationForm = () => {
           {renderTabContent()}
           <div className="flex justify-between">
             {activeTab !== 'personal' && (
-              <button type="button" onClick={() => setActiveTab(tabs[tabs.indexOf(activeTab) - 1] as typeof activeTab)} className="px-6 py-2 bg-gray-300 rounded-md">
+              <button type="button" onClick={() => setActiveTab('personal')} className="px-6 py-2 bg-gray-300 rounded-md">
                 Previous
               </button>
             )}
-            {activeTab !== 'certifications' ? (
-              <button type="button" onClick={() => setActiveTab(tabs[tabs.indexOf(activeTab) + 1] as typeof activeTab)} className="ml-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Next
-              </button>
-            ) : (
-              <button type="submit" className="ml-auto px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                Save Information
-              </button>
-            )}
+            <button
+              type="button" 
+              onClick={async () => {
+                const valid = await validateCurrentSection();
+                if (valid) {
+                  const currentTabIndex = ['personal', 'education', 'experience', 'certifications'].indexOf(activeTab);
+                  const nextTab = ['personal', 'education', 'experience', 'certifications'][currentTabIndex + 1] as 'personal' | 'education' | 'experience' | 'certifications';
+                  if (nextTab) setActiveTab(nextTab);
+                }
+              }}
+              className={`ml-auto rounded-md px-6 py-2 ${formState.isValid ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+              disabled={!formState.isValid}
+            >
+              {activeTab === 'certifications' ? 'Save Information' : 'Next'}
+            </button>
           </div>
         </form>
       </div>
