@@ -99,7 +99,7 @@ const DrVerificationForm = () => {
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="address">Address*</Label>
-              <Input id="address" type="text" name="address" value={formData.address} onChange={handleChange} required placeholder='Address' className='mt-1'/>
+              <Input id="address" type="text" name="address" value={formData.address} onChange={handleChange} required placeholder='Address' className='mt-1' />
             </div>
           </div>
         );
@@ -174,7 +174,7 @@ const DrVerificationForm = () => {
                 </div>
                 <div>
                   <Label htmlFor={`authority-${index}`}>Issuing Organization*</Label>
-                  <Input id={`authority-${index}`} name="authority" value={cert.authority} onChange={(e) => handleChange(e, index, 'certifications')}placeholder='Issuing Organization' className='mt-1' required />
+                  <Input id={`authority-${index}`} name="authority" value={cert.authority} onChange={(e) => handleChange(e, index, 'certifications')} placeholder='Issuing Organization' className='mt-1' required />
                 </div>
                 <div>
                   <Label htmlFor={`certYear-${index}`}>Issue Year*</Label>
