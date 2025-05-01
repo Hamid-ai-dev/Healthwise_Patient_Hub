@@ -128,7 +128,7 @@ const DrVerificationForm = () => {
                 </div>
                 <div>
                   <Label>Grad Year*</Label>
-                  <Input {...register(`education.${index}.gradYear`, { required: true })} placeholder="Grad Year" className="mt-1" />
+                  <Input type='number' min="1900" max="2025" {...register(`education.${index}.gradYear`, { required: true })} placeholder="Valid Grad Year (1990 to 2025)" className="mt-1" />
                 </div>
                 <div>
                   <Label>Country</Label>
@@ -194,7 +194,7 @@ const DrVerificationForm = () => {
                 </div>
                 <div>
                   <Label>Issue Year*</Label>
-                  <Input {...register(`certifications.${index}.certYear`, { required: true })} placeholder="Issue Year" className="mt-1" />
+                  <Input type='number' min="1900" max="2025" {...register(`certifications.${index}.certYear`, { required: true })} placeholder="Valid Issue Year (1990 to 2025)" className="mt-1" />
                 </div>
               </div>
             ))}
@@ -229,7 +229,7 @@ const DrVerificationForm = () => {
           </nav>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {renderTabContent()}
           <div className="flex justify-between">
             {activeTab !== 'personal' && (
