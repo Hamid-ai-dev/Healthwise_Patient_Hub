@@ -1,5 +1,19 @@
 const PatientRecord = require('../../models/doctor/PatientRecord');
+
 const mongoose = require('mongoose');
+
+
+
+
+const getPatients = async (req, res) => {
+  try {
+    const patients = await PatientRecord.find({ doctor: req.user._id }).select('name');
+    res.status(200).json(patients);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 // Create a new patient record
 const addDoctorsPatient = async (req, res) => {
@@ -12,7 +26,7 @@ const addDoctorsPatient = async (req, res) => {
     // Log received data for debugging
     console.log('Received patient data:', {
       ...req.body,
-      image: req.file ? `Image: ${req.file.filename}, ID: ${req.file.id}` : 'No image received'
+      image: req.file ? `Image received: ${req.file.filename}` : 'No image received'
     });
 
     // Validate required fields
@@ -21,41 +35,30 @@ const addDoctorsPatient = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Validate file presence
-    if (!req.file) {
-      return res.status(400).json({ message: 'Image file is required' });
-    }s
-
-    // Validate data types and formats
-    if (isNaN(parseInt(age))) {
-      return res.status(400).json({ message: 'Age must be a valid number' });
-    }
-    if (!['male', 'female', 'other'].includes(gender)) {
-      return res.status(400).json({ message: 'Invalid gender value' });
-    }
-    if (isNaN(parseInt(weight))) {
-      return res.status(400).json({ message: 'Weight must be a valid number' });
-    }
-
-    // Create patient record
-    const patientData = {
+    // Create new patient record
+    const newPatient = new PatientRecord({
       name,
-      age: parseInt(age),
+      age,
       gender,
       phone,
       address,
-      email,
+      email, 
       height,
-      weight: parseInt(weight),
+      weight,
       bloodPressure,
       heartRate,
-      image: req.file.id, // Store GridFS file ID
-      doctor: req.user._id, // Link to logged-in doctor
-      queries: []
-    };
+      // Store image path if file exists, otherwise null
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      doctor: req.user.id
+    });
 
-    const patient = await PatientRecord.create(patientData);
-    res.status(201).json({ message: 'Patient added successfully', patient });
+    // Save patient record
+    const savedPatient = await newPatient.save();
+    
+    res.status(201).json({
+      message: 'Patient added successfully',
+      patient: savedPatient
+    });
   } catch (error) {
     // Log detailed error
     console.error('Error adding patient:', {
@@ -73,4 +76,27 @@ const addDoctorsPatient = async (req, res) => {
   }
 };
 
-module.exports = { addDoctorsPatient };
+// Get all patients
+const getAllPatients = async (req, res) => {
+  try {
+    // Implementation will be added here
+    res.status(200).json({ message: 'Get all patients endpoint' });
+  } catch (error) {
+    console.error('Error getting patients:', error);
+    res.status(500).json({ message: 'Error fetching patients' });
+  }
+};
+
+// Get patient by ID
+const getPatientById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Implementation will be added here
+    res.status(200).json({ message: `Get patient with ID: ${id}` });
+  } catch (error) {
+    console.error('Error getting patient:', error);
+    res.status(500).json({ message: 'Error fetching patient details' });
+  }
+};
+
+module.exports = { addDoctorsPatient , getPatients, getAllPatients, getPatientById};

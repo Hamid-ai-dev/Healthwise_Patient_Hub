@@ -6,12 +6,13 @@ const alertRoutes = require('./routes/alertRoutes');
 const doctorDashboardRoutes = require('./routes/doctor/dashboardRoutes');
 const doctorProfileRoutes = require('./routes/doctor/profileRoutes');
 const patientRoutes = require('./routes/doctor/patientRoutes');
+const doctorReportRoutes = require('./routes/doctor/reportRoutes');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Verify MONGO_URI is loaded
 if (!process.env.MONGO_URI) {
   console.error('Error: MONGO_URI is not defined in .env file');
   process.exit(1);
@@ -19,29 +20,26 @@ if (!process.env.MONGO_URI) {
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Connect to MongoDB and start server
 const startServer = async () => {
   try {
     await connectDB();
     console.log('MongoDB connected successfully');
 
-    // --- User and Alert Routes ---
     app.use('/api', userRoutes);
     app.use('/api/alerts', alertRoutes);
 
-    // --- Doctor Routes ---
     app.use('/api/doctor', (req, res, next) => {
       console.log(`>>> Doctor Path Request: ${req.method} ${req.originalUrl}`);
       next();
     });
 
-    // Mount specific doctor routes
     app.use('/api/doctor/dashboard', doctorDashboardRoutes);
     app.use('/api/doctor/profile', doctorProfileRoutes);
     app.use('/api/doctor/patient', patientRoutes);
+    app.use('/api/doctor/reports', doctorReportRoutes);
 
-    // --- Basic Error Handler ---
     app.use((err, req, res, next) => {
       console.error("Unhandled Error:", err.stack || err);
       const statusCode = err.statusCode || 500;

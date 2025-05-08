@@ -8,6 +8,10 @@ import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 
+// Define API base URL (consistent with other parts of the application like Dashboard.tsx)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const ADD_PATIENT_API_URL = `${API_BASE_URL}/doctor/patient/add-patient`;
+
 interface AddPatientProps {
   onClose: () => void;
   onSave: (newPatient: any) => void;
@@ -98,7 +102,7 @@ const AddPatient: React.FC<AddPatientProps> = ({ onClose, onSave }) => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/doctor/patient/add-patient', submissionData, {
+      const response = await axios.post(ADD_PATIENT_API_URL, submissionData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -152,7 +156,7 @@ const AddPatient: React.FC<AddPatientProps> = ({ onClose, onSave }) => {
       console.error('API Error:', error.response?.data, error.message);
 
       // Show specific error message from backend
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to add patient';
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to add patient. Ensure the backend server is running and accessible.';
       toast({
         title: "Error",
         description: errorMessage,

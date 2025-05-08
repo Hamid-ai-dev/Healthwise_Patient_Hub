@@ -11,9 +11,9 @@ const patientRecordSchema = new mongoose.Schema({
   weight: { type: Number, required: true },
   bloodPressure: { type: String, required: true },
   heartRate: { type: String, required: true },
-  image: { type: mongoose.Schema.Types.ObjectId, ref: 'fs.files' }, // Reference to GridFS file
-  doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to doctor
-  queries: [{ type: String }], // Array for future queries
+  image: { type: String, required: false }, // Changed to String to store file path
+  doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  queries: [{ type: String }],
   createdAt: { type: Date, default: Date.now }
 });
 

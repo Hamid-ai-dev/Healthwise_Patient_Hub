@@ -1,8 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { patients } from "@/data/mockData";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Card,
@@ -36,14 +34,11 @@ import { toast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import axios from "axios";
 
 const reportSchema = z.object({
-  patientId: z.string({
-    required_error: "Please select a patient",
-  }),
-  type: z.string({
-    required_error: "Please select a report type",
-  }),
+  patientId: z.string({ required_error: "Please select a patient" }),
+  type: z.string({ required_error: "Please select a report type" }),
   date: z.string().min(1, "Date is required"),
   results: z.string().min(10, "Results should be at least 10 characters"),
   recommendations: z.string().optional(),
@@ -68,11 +63,12 @@ const reportTypes = [
 ];
 
 const CreateReport = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // Destructure token directly
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get("patientId");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState([]);
 
   const defaultValues: Partial<ReportFormValues> = {
     patientId: patientId || "",
@@ -88,28 +84,91 @@ const CreateReport = () => {
     defaultValues,
   });
 
+  useEffect(() => {
+    const fetchPatients = async () => {
+      if (!token) {
+        navigate('/login');
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to access this page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        const response = await axios.get("/api/doctor/patient", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPatients(response.data);
+      } catch (error) {
+        console.error("Error fetching patients:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch patients",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchPatients();
+  }, [token, navigate]);
+
   const onSubmit = async (data: ReportFormValues) => {
-    setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+    if (!token) {
+      navigate('/login');
       toast({
-        title: "Report created",
-        description: "The medical report has been successfully created",
+        title: "Authentication Error",
+        description: "Please log in to create a report.",
+        variant: "destructive",
       });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await axios.post(
+        "/api/doctor/reports",
+        {
+          patientId: data.patientId,
+          type: data.type,
+          date: data.date,
+          results: data.results,
+          recommendations: data.recommendations,
+          notes: data.notes,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.status === 201) {
+        toast({
+          title: "Report created",
+          description: "The medical report has been successfully created",
+        });
+        navigate(`/medical-records?patientId=${data.patientId}`);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create report",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating report:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while creating the report",
+        variant: "destructive",
+      });
+    } finally {
       setIsSubmitting(false);
-      navigate(`/medical-records?patientId=${data.patientId}`);
-    }, 1500);
+    }
   };
 
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-6">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(-1)}
-          >
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Create Medical Report</h1>
@@ -127,10 +186,7 @@ const CreateReport = () => {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
-              >
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="patientId"
@@ -149,7 +205,7 @@ const CreateReport = () => {
                         </FormControl>
                         <SelectContent>
                           {patients.map((patient) => (
-                            <SelectItem key={patient.id} value={patient.id}>
+                            <SelectItem key={patient._id} value={patient._id}>
                               {patient.name}
                             </SelectItem>
                           ))}
@@ -169,10 +225,7 @@ const CreateReport = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Report Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select report type" />
@@ -186,9 +239,7 @@ const CreateReport = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
-                        Choose the type of medical report
-                      </FormDescription>
+                      <FormDescription>Choose the type of medical report</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -275,11 +326,7 @@ const CreateReport = () => {
                 />
 
                 <CardFooter className="px-0 pt-6 flex justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate(-1)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => navigate(-1)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
