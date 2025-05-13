@@ -1,39 +1,34 @@
-const mongoose = require('mongoose');
 const multer = require('multer');
-const { GridFsStorage } = require('multer-gridfs-storage');
+const path = require('path');
+const fs = require('fs');
 
-// Initialize GridFS storage after ensuring Mongoose connection is ready
-const initializeStorage = () => {
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error('Mongoose connection is not established');
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Uploads directory created at:', uploadDir);
+}
+
+// Configure storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, `patient_${Date.now()}${path.extname(file.originalname)}`);
   }
-
-  return new GridFsStorage({
-    db: mongoose.connection,
-    file: (req, file) => {
-      return {
-        filename: `patient_${Date.now()}_${file.originalname}`,
-        bucketName: 'uploads'
-      };
-    }
-  });
-};
-
-// Create storage instance
-const storage = multer.memoryStorage(); // Fallback to memory storage initially
-mongoose.connection.once('open', () => {
-  // Replace with GridFS storage once connection is open
-  module.exports.storage = initializeStorage();
 });
 
-// Configure multer
+// Create upload middleware
 const upload = multer({
-  storage,
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files are allowed'), false);
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
     }
-    cb(null, true);
   }
 });
 
