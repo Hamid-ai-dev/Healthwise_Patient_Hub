@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -20,6 +21,11 @@ import {
   Pill,
   Clock,
   AlertCircle,
+  Loader2,
+  Heart,
+  TrendingUp,
+  Download,
+  Eye
 } from 'lucide-react';
 import {
   AreaChart,
@@ -32,36 +38,83 @@ import {
 } from 'recharts';
 import { appointments, prescriptions, medicalReports } from '@/data/mockData';
 import { Appointment, MedicalReport, Prescription } from '@/types';
-
-const chartData = [
-  { name: 'Mon', value: 70 },
-  { name: 'Tue', value: 75 },
-  { name: 'Wed', value: 78 },
-  { name: 'Thu', value: 72 },
-  { name: 'Fri', value: 80 },
-  { name: 'Sat', value: 82 },
-  { name: 'Sun', value: 75 },
-];
+import {
+  patientHealthService,
+  PatientOverview,
+  HealthMetricsData,
+  HealthStats,
+  PatientReport,
+  ReportStats
+} from '@/services/patientHealthService';
 
 const PatientDashboard = () => {
-  const { user, patientData } = useAuth();
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+
+  // Real-time health data state
+  const [healthOverview, setHealthOverview] = useState<PatientOverview | null>(null);
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetricsData | null>(null);
+  const [healthStats, setHealthStats] = useState<HealthStats | null>(null);
+  const [patientReports, setPatientReports] = useState<PatientReport[]>([]);
+  const [reportStats, setReportStats] = useState<ReportStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<Array<{name: string, value: number}>>([]);
+
+  // Legacy state for appointments and prescriptions (still using mock data)
   const [patientAppointments, setPatientAppointments] = useState<Appointment[]>([]);
   const [patientPrescriptions, setPatientPrescriptions] = useState<Prescription[]>([]);
-  const [patientReports, setPatientReports] = useState<MedicalReport[]>([]);
 
   useEffect(() => {
     // Load patient-specific data if user is logged in
-    if (user && user.id) {
-      // Filter appointments for this patient
+    if (user && user.id && token) {
+      fetchHealthData();
+
+      // Still using mock data for appointments and prescriptions
       setPatientAppointments(appointments.filter(apt => apt.patientId === user.id));
-      
-      // Filter prescriptions for this patient
       setPatientPrescriptions(prescriptions.filter(presc => presc.patientId === user.id));
-      
-      // Filter medical reports for this patient
-      setPatientReports(medicalReports.filter(report => report.patientId === user.id));
     }
-  }, [user]);
+  }, [user, token]);
+
+  const fetchHealthData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all health-related data in parallel
+      const [overview, metrics, stats, reports, reportStatsData] = await Promise.all([
+        patientHealthService.getHealthOverview(token!),
+        patientHealthService.getHealthMetrics(token!),
+        patientHealthService.getHealthStats(token!),
+        patientHealthService.getPatientReports(token!),
+        patientHealthService.getReportStats(token!)
+      ]);
+
+      setHealthOverview(overview);
+      setHealthMetrics(metrics);
+      setHealthStats(stats);
+      setPatientReports(reports);
+      setReportStats(reportStatsData);
+
+      // Format chart data from health history
+      if (metrics.history.length > 0) {
+        const formattedChartData = patientHealthService.formatHealthMetricsForChart(metrics.history);
+        setChartData(formattedChartData);
+      }
+
+    } catch (error: any) {
+      console.error('Error fetching health data:', error);
+
+      // Only show error if it's not a 404 (no records found)
+      if (error.response?.status !== 404) {
+        toast({
+          title: "Error",
+          description: "Failed to load health data. Some features may not be available.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Format date to readable string
   const formatDate = (dateString: string) => {
@@ -183,24 +236,43 @@ const PatientDashboard = () => {
                       </ResponsiveContainer>
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-xs text-blue-700 font-medium">Heart Rate</p>
-                        <p className="text-2xl font-semibold">{patientData?.healthMetrics?.heartRate || '--'} <span className="text-xs">bpm</span></p>
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Loading health data...</span>
                       </div>
-                      <div className="bg-green-50 p-3 rounded-lg">
-                        <p className="text-xs text-green-700 font-medium">Blood Pressure</p>
-                        <p className="text-2xl font-semibold">{patientData?.healthMetrics?.bloodPressure || '--'}</p>
+                    ) : healthOverview ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <p className="text-xs text-blue-700 font-medium">Heart Rate</p>
+                          <p className="text-2xl font-semibold">
+                            {healthOverview.healthMetrics.heartRate || '--'}
+                            <span className="text-xs">bpm</span>
+                          </p>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <p className="text-xs text-green-700 font-medium">Blood Pressure</p>
+                          <p className="text-2xl font-semibold">
+                            {healthOverview.healthMetrics.bloodPressure || '--'}
+                          </p>
+                        </div>
+                        <div className="bg-amber-50 p-3 rounded-lg">
+                          <p className="text-xs text-amber-700 font-medium">Weight</p>
+                          <p className="text-2xl font-semibold">
+                            {healthOverview.healthMetrics.weight || '--'}
+                            <span className="text-xs">kg</span>
+                          </p>
+                        </div>
                       </div>
-                      <div className="bg-amber-50 p-3 rounded-lg">
-                        <p className="text-xs text-amber-700 font-medium">Weight</p>
-                        <p className="text-2xl font-semibold">{patientData?.healthMetrics?.weight || '--'} <span className="text-xs">kg</span></p>
+                    ) : (
+                      <div className="text-center py-8">
+                        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No Health Data Available</h3>
+                        <p className="text-muted-foreground">
+                          Your health records will appear here once they are added by your doctor.
+                        </p>
                       </div>
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-xs text-purple-700 font-medium">Blood Sugar</p>
-                        <p className="text-2xl font-semibold">{patientData?.healthMetrics?.bloodSugar || '--'} <span className="text-xs">mg/dL</span></p>
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -212,40 +284,52 @@ const PatientDashboard = () => {
                     <CardDescription>View and track your detailed health data</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Height</span>
-                        <span>{patientData?.healthMetrics?.height} cm</span>
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Loading metrics...</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Weight</span>
-                        <span>{patientData?.healthMetrics?.weight} kg</span>
+                    ) : healthOverview ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Height</span>
+                          <span>{healthOverview.healthMetrics.height} cm</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Weight</span>
+                          <span>{healthOverview.healthMetrics.weight} kg</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">BMI</span>
+                          <span>{healthOverview.healthMetrics.bmi || '--'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Blood Pressure</span>
+                          <span>{healthOverview.healthMetrics.bloodPressure}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Heart Rate</span>
+                          <span>{healthOverview.healthMetrics.heartRate} bpm</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Last Updated</span>
+                          <span>
+                            {healthOverview.healthMetrics.lastUpdated
+                              ? new Date(healthOverview.healthMetrics.lastUpdated).toLocaleDateString()
+                              : '--'
+                            }
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">BMI</span>
-                        <span>
-                          {patientData?.healthMetrics?.height && patientData?.healthMetrics?.weight ? (
-                            (patientData.healthMetrics.weight / Math.pow(patientData.healthMetrics.height/100, 2)).toFixed(1)
-                          ) : '--'}
-                        </span>
+                    ) : (
+                      <div className="text-center py-8">
+                        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No Detailed Metrics Available</h3>
+                        <p className="text-muted-foreground">
+                          Detailed health metrics will appear here once they are recorded.
+                        </p>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Blood Pressure</span>
-                        <span>{patientData?.healthMetrics?.bloodPressure}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Heart Rate</span>
-                        <span>{patientData?.healthMetrics?.heartRate} bpm</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Blood Sugar</span>
-                        <span>{patientData?.healthMetrics?.bloodSugar} mg/dL</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Last Updated</span>
-                        <span>{patientData?.healthMetrics?.lastUpdated ? new Date(patientData.healthMetrics.lastUpdated).toLocaleDateString() : '--'}</span>
-                      </div>
-                    </div>
+                    )}
                     
                     <div className="mt-6">
                       <Button className="w-full">Update Health Metrics</Button>
@@ -261,26 +345,71 @@ const PatientDashboard = () => {
                     <CardDescription>Your recent medical test results</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {patientReports.length > 0 ? (
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="ml-2">Loading reports...</span>
+                      </div>
+                    ) : patientReports.length > 0 ? (
                       <div className="space-y-4">
                         {patientReports.map((report) => (
-                          <div key={report.id} className="border rounded-lg p-4">
+                          <div key={report._id} className="border rounded-lg p-4">
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="font-semibold">{report.type}</h3>
-                              <span className="text-sm text-gray-500">{new Date(report.date).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2">{report.results}</p>
-                            {report.aiAnalysis && (
-                              <div className="bg-blue-50 p-3 rounded-md mt-2">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Activity className="h-4 w-4 text-healwise-blue" />
-                                  <span className="text-xs font-medium text-healwise-blue">AI Analysis</span>
-                                </div>
-                                <p className="text-sm">{report.aiAnalysis}</p>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  report.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  report.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {report.status}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  {new Date(report.date).toLocaleDateString()}
+                                </span>
                               </div>
-                            )}
-                            <div className="mt-3">
-                              <Button variant="outline" size="sm">View Full Report</Button>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">
+                              Doctor: {report.doctor.name}
+                            </p>
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Handle view report
+                                  window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${report.pdfPath}`, '_blank');
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View Report
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const blob = await patientHealthService.downloadReport(token!, report._id);
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${report.type}_${new Date(report.date).toISOString().split('T')[0]}.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to download report",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Download
+                              </Button>
                             </div>
                           </div>
                         ))}

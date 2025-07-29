@@ -3,10 +3,15 @@ const cors = require('cors');
 const connectDB = require('./db/connect');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
 const doctorDashboardRoutes = require('./routes/doctor/dashboardRoutes');
 const doctorProfileRoutes = require('./routes/doctor/profileRoutes');
 const patientRoutes = require('./routes/doctor/patientRoutes');
 const doctorReportRoutes = require('./routes/doctor/reportRoutes');
+const doctorReportsRoutes = require('./routes/doctor/reportsRoutes');
+const patientHealthRoutes = require('./routes/patient/healthRoutes');
+const patientReportsRoutes = require('./routes/patient/reportsRoutes');
 const path = require('path');
 require('dotenv').config();
 
@@ -29,6 +34,12 @@ const startServer = async () => {
 
     app.use('/api', userRoutes);
     app.use('/api/alerts', alertRoutes);
+    app.use('/api/messages', messageRoutes);
+    app.use('/api/appointments', appointmentRoutes);
+
+    // Patient routes
+    app.use('/api/patient/health', patientHealthRoutes);
+    app.use('/api/patient/reports', patientReportsRoutes);
 
     app.use('/api/doctor', (req, res, next) => {
       console.log(`>>> Doctor Path Request: ${req.method} ${req.originalUrl}`);
@@ -37,8 +48,9 @@ const startServer = async () => {
 
     app.use('/api/doctor/dashboard', doctorDashboardRoutes);
     app.use('/api/doctor/profile', doctorProfileRoutes);
-    app.use('/api/doctor/patient', patientRoutes);
-    app.use('/api/doctor/reports', doctorReportRoutes);
+    app.use('/api/doctor/patients', patientRoutes);
+    app.use('/api/doctor/report', doctorReportRoutes);
+    app.use('/api/doctor/reports', doctorReportsRoutes);
 
     app.use((err, req, res, next) => {
       console.error("Unhandled Error:", err.stack || err);
